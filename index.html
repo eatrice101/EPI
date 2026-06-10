@@ -226,19 +226,18 @@ input:focus,select:focus{outline:none;border-color:var(--azul-medio)}
 
     <!-- Configuração Firebase -->
     <div class="setup-box" id="setup-box">
-      <h3><i class="fa-solid fa-database"></i>Configurar banco de dados em tempo real</h3>
-      <p>Para compartilhar com qualquer pessoa via link (como Google Sheets), cole a URL do seu Firebase Realtime Database. É gratuito e leva 2 minutos.</p>
+      <h3><i class="fa-solid fa-database"></i>Configurar banco de dados (JSONBin.io)</h3>
+      <p>Para compartilhar com qualquer pessoa via link, cole sua API Key do JSONBin.io. É gratuito e leva 1 minuto.</p>
       <div class="setup-input-row">
-        <input id="firebase-url" type="text" placeholder="https://SEU-PROJETO-default-rtdb.firebaseio.com">
-        <button class="btn-conectar" onclick="conectarFirebase()"><i class="fa-solid fa-plug"></i> Conectar</button>
+        <input id="jsonbin-key" type="text" placeholder="Cole sua API Key aqui ($2b$10$...)">
+        <button class="btn-conectar" onclick="conectarJSONBin()"><i class="fa-solid fa-plug"></i> Conectar</button>
       </div>
       <div class="setup-steps">
-        <strong>Como criar em 2 minutos (gratuito):</strong><br>
-        1. Acesse <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → Criar projeto<br>
-        2. Menu lateral: <strong>Build → Realtime Database → Criar banco</strong><br>
-        3. Escolha <strong>"Iniciar no modo de teste"</strong><br>
-        4. Copie a URL gerada (ex: <em>https://meu-projeto-default-rtdb.firebaseio.com</em>)<br>
-        5. Cole acima e clique em <strong>Conectar</strong> — todos que abrirem o arquivo verão os mesmos dados!
+        <strong>Como criar em 1 minuto (gratuito):</strong><br>
+        1. Acesse <a href="https://jsonbin.io" target="_blank">jsonbin.io</a> → Sign Up (gratuito)<br>
+        2. Após entrar, clique no seu perfil → <strong>API Keys</strong><br>
+        3. Copie a <strong>Secret Key</strong> (começa com <em>$2b$10$...</em>)<br>
+        4. Cole acima e clique em <strong>Conectar</strong> — todos verão os mesmos dados!
       </div>
     </div>
 
@@ -334,61 +333,47 @@ input:focus,select:focus{outline:none;border-color:var(--azul-medio)}
 
 <script>
 let tipoSel=null,btnAtivo=null,tipoModalSel=null,btnModalAtivo=null;
-let registros={};
-let fbUrl=null;
+let registros=[];
+let apiKey=null;
+let binId=null;
 let excluindoId=null,editandoId=null;
-let sseSource=null;
 let fotoBase64=null;
 let fotoModalBase64=null;
+let pooling=null;
 
+// ── Foto ──────────────────────────────────────────────
 function previewFoto(input){
-  const file=input.files[0];
-  if(!file)return;
+  const file=input.files[0];if(!file)return;
   if(file.size>5*1024*1024){mostrarAlerta('Foto muito grande. Máximo 5MB.');input.value='';return;}
   const reader=new FileReader();
-  reader.onload=e=>{
-    fotoBase64=e.target.result;
-    document.getElementById('foto-preview').src=fotoBase64;
-    document.getElementById('foto-placeholder').style.display='none';
-    document.getElementById('foto-preview-wrap').style.display='block';
-  };
+  reader.onload=e=>{fotoBase64=e.target.result;document.getElementById('foto-preview').src=fotoBase64;document.getElementById('foto-placeholder').style.display='none';document.getElementById('foto-preview-wrap').style.display='block';};
   reader.readAsDataURL(file);
 }
 function removerFoto(ev){
-  ev.preventDefault();ev.stopPropagation();
-  fotoBase64=null;
-  document.getElementById('foto-input').value='';
-  document.getElementById('foto-preview').src='';
-  document.getElementById('foto-placeholder').style.display='block';
-  document.getElementById('foto-preview-wrap').style.display='none';
+  ev&&ev.preventDefault&&ev.preventDefault();ev&&ev.stopPropagation&&ev.stopPropagation();
+  fotoBase64=null;document.getElementById('foto-input').value='';document.getElementById('foto-preview').src='';
+  document.getElementById('foto-placeholder').style.display='block';document.getElementById('foto-preview-wrap').style.display='none';
 }
 function previewFotoModal(input){
-  const file=input.files[0];
-  if(!file)return;
+  const file=input.files[0];if(!file)return;
   if(file.size>5*1024*1024){mostrarAlerta('Foto muito grande. Máximo 5MB.');input.value='';return;}
   const reader=new FileReader();
-  reader.onload=e=>{
-    fotoModalBase64=e.target.result;
-    document.getElementById('m-foto-preview').src=fotoModalBase64;
-    document.getElementById('m-foto-placeholder').style.display='none';
-    document.getElementById('m-foto-preview-wrap').style.display='block';
-  };
+  reader.onload=e=>{fotoModalBase64=e.target.result;document.getElementById('m-foto-preview').src=fotoModalBase64;document.getElementById('m-foto-placeholder').style.display='none';document.getElementById('m-foto-preview-wrap').style.display='block';};
   reader.readAsDataURL(file);
 }
 function removerFotoModal(ev){
-  ev.preventDefault();ev.stopPropagation();
-  fotoModalBase64=null;
-  document.getElementById('m-foto-input').value='';
-  document.getElementById('m-foto-preview').src='';
-  document.getElementById('m-foto-placeholder').style.display='block';
-  document.getElementById('m-foto-preview-wrap').style.display='none';
+  ev&&ev.preventDefault&&ev.preventDefault();ev&&ev.stopPropagation&&ev.stopPropagation();
+  fotoModalBase64=null;document.getElementById('m-foto-input').value='';document.getElementById('m-foto-preview').src='';
+  document.getElementById('m-foto-placeholder').style.display='block';document.getElementById('m-foto-preview-wrap').style.display='none';
 }
-function abrirModalFoto(src){
-  document.getElementById('modal-foto-img').src=src;
+function abrirModalFoto(idx){
+  const r=registros[idx];if(!r||!r.foto)return;
+  document.getElementById('modal-foto-img').src=r.foto;
   document.getElementById('modal-foto').classList.add('open');
 }
 function fecharModalFoto(){document.getElementById('modal-foto').classList.remove('open');}
 
+// ── UI helpers ────────────────────────────────────────
 function setSyncBadge(txt,cor){
   document.getElementById('sync-txt').textContent=txt;
   const d=document.getElementById('sync-dot');
@@ -396,7 +381,6 @@ function setSyncBadge(txt,cor){
   d.style.background=cores[cor]||cores.vermelho;
   d.style.animation=cor==='amarelo'?'blink .8s infinite':'none';
 }
-
 function mostrarAlerta(msg,tipo='erro'){
   const a=document.getElementById('alerta');
   document.getElementById('alerta-msg').textContent=msg;
@@ -404,52 +388,65 @@ function mostrarAlerta(msg,tipo='erro'){
   document.getElementById('alerta-icone').className='fa-solid '+(tipo==='erro'?'fa-circle-exclamation':'fa-circle-check');
   setTimeout(()=>a.classList.remove('show'),3500);
 }
+function selecionarTipo(tipo,btn){if(btnAtivo)btnAtivo.className='tipo-btn';tipoSel=tipo;btnAtivo=btn;btn.className='tipo-btn selected-'+tipo;}
+function selecionarTipoModal(tipo,btn){if(btnModalAtivo)btnModalAtivo.className='tipo-btn';tipoModalSel=tipo;btnModalAtivo=btn;btn.className='tipo-btn selected-'+tipo;}
 
-function selecionarTipo(tipo,btn){
-  if(btnAtivo)btnAtivo.className='tipo-btn';
-  tipoSel=tipo;btnAtivo=btn;btn.className='tipo-btn selected-'+tipo;
+// ── JSONBin API ───────────────────────────────────────
+const JSONBIN_BASE='https://api.jsonbin.io/v3';
+
+async function jbLer(){
+  const r=await fetch(`${JSONBIN_BASE}/b/${binId}/latest`,{headers:{'X-Master-Key':apiKey}});
+  if(!r.ok)throw new Error('Erro ao ler');
+  const d=await r.json();
+  return d.record.registros||[];
 }
-function selecionarTipoModal(tipo,btn){
-  if(btnModalAtivo)btnModalAtivo.className='tipo-btn';
-  tipoModalSel=tipo;btnModalAtivo=btn;btn.className='tipo-btn selected-'+tipo;
+async function jbSalvar(lista){
+  const r=await fetch(`${JSONBIN_BASE}/b/${binId}`,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':apiKey},body:JSON.stringify({registros:lista})});
+  if(!r.ok)throw new Error('Erro ao salvar');
+  return r.json();
+}
+async function criarBin(){
+  const r=await fetch(`${JSONBIN_BASE}/b`,{method:'POST',headers:{'Content-Type':'application/json','X-Master-Key':apiKey,'X-Bin-Name':'sistema-epi','X-Bin-Private':'false'},body:JSON.stringify({registros:[]})});
+  if(!r.ok)throw new Error('Erro ao criar bin');
+  const d=await r.json();
+  return d.metadata.id;
 }
 
-async function fbGet(path){const r=await fetch(fbUrl+path+'.json');if(!r.ok)throw new Error();return r.json();}
-async function fbPost(path,data){const r=await fetch(fbUrl+path+'.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok)throw new Error();return r.json();}
-async function fbSet(path,data){const r=await fetch(fbUrl+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok)throw new Error();return r.json();}
-async function fbDelete(path){const r=await fetch(fbUrl+path+'.json',{method:'DELETE'});if(!r.ok)throw new Error();}
-
-function iniciarSSE(){
-  if(sseSource)sseSource.close();
-  sseSource=new EventSource(fbUrl+'/epis.json');
-  sseSource.addEventListener('put',e=>{const d=JSON.parse(e.data);registros=d.data||{};renderHistorico();});
-  sseSource.addEventListener('patch',e=>{const d=JSON.parse(e.data);Object.assign(registros,d.data||{});renderHistorico();});
-  sseSource.onerror=()=>setSyncBadge('Reconectando...','amarelo');
-  sseSource.onopen=()=>setSyncBadge('Ao vivo ●','verde');
-}
-
-async function conectarFirebase(){
-  let url=document.getElementById('firebase-url').value.trim().replace(/\/$/,'');
-  if(!url.startsWith('https://')){mostrarAlerta('URL inválida. Deve começar com https://');return;}
+async function conectarJSONBin(){
+  const key=document.getElementById('jsonbin-key').value.trim();
+  if(!key){mostrarAlerta('Cole sua API Key primeiro.');return;}
   setSyncBadge('Conectando...','amarelo');
   try{
-    const teste=await fbGet('/epis');
-    registros=teste||{};
-    fbUrl=url;
-    try{localStorage.setItem('epi_fb_url',url);}catch(e){}
+    apiKey=key;
+    // Verifica se já tem um binId salvo para essa key
+    let savedBin=null;
+    try{savedBin=localStorage.getItem('epi_bin_'+btoa(key).slice(0,16));}catch(e){}
+    if(savedBin){
+      binId=savedBin;
+    }else{
+      binId=await criarBin();
+      try{localStorage.setItem('epi_bin_'+btoa(key).slice(0,16),binId);}catch(e){}
+    }
+    try{localStorage.setItem('epi_jb_key',key);}catch(e){}
+    registros=await jbLer();
     document.getElementById('setup-box').style.display='none';
     document.getElementById('status-online').style.display='flex';
+    setSyncBadge('Conectado ●','verde');
     renderHistorico();
-    iniciarSSE();
-    mostrarAlerta('Conectado! Dados em tempo real para todos.','sucesso');
+    mostrarAlerta('Conectado! Dados compartilhados com todos.','sucesso');
+    // Polling a cada 15s para atualizar
+    if(pooling)clearInterval(pooling);
+    pooling=setInterval(async()=>{try{registros=await jbLer();renderHistorico();}catch(e){}},15000);
   }catch(e){
     setSyncBadge('Erro','vermelho');
-    mostrarAlerta('Não foi possível conectar. Verifique a URL e as regras do Firebase.');
+    apiKey=null;binId=null;
+    mostrarAlerta('Não foi possível conectar. Verifique sua API Key.');
   }
 }
 
+// ── CRUD ──────────────────────────────────────────────
 async function registrar(){
-  if(!fbUrl){mostrarAlerta('Conecte ao Firebase primeiro.');return;}
+  if(!binId){mostrarAlerta('Conecte ao banco primeiro.');return;}
   const func=document.getElementById('funcionario').value.trim();
   const epi=document.getElementById('epi').value.trim();
   const setor=document.getElementById('setor').value;
@@ -460,6 +457,7 @@ async function registrar(){
   const destinos={contaminado:'Empresa especializada',reciclavel:'Reciclagem',comum:'Aterro autorizado'};
   const agora=new Date();
   const novo={
+    id:Date.now()+'_'+Math.random().toString(36).slice(2,7),
     func,epi,tipo:tipoSel,destino:destinos[tipoSel],
     setor:setor||'—',motivo:motivo||'—',
     hora:agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
@@ -468,20 +466,23 @@ async function registrar(){
     foto:fotoBase64||null
   };
   try{
-    await fbPost('/epis',novo);
+    const lista=[novo,...registros];
+    await jbSalvar(lista);
+    registros=lista;
     document.getElementById('funcionario').value='';
     document.getElementById('epi').value='';
     document.getElementById('setor').value='';
     document.getElementById('motivo').value='';
-    removerFoto({preventDefault:()=>{},stopPropagation:()=>{}});
+    removerFoto(null);
     if(btnAtivo)btnAtivo.className='tipo-btn';
     tipoSel=null;btnAtivo=null;
-    mostrarAlerta('Descarte registrado para todos!','sucesso');
+    renderHistorico();
+    mostrarAlerta('Descarte registrado!','sucesso');
   }catch(e){mostrarAlerta('Erro ao salvar. Tente novamente.');}
 }
 
 function pedirExclusao(id){
-  const r=registros[id];if(!r)return;
+  const r=registros.find(x=>x.id===id);if(!r)return;
   excluindoId=id;
   document.getElementById('excluir-info').innerHTML=
     `<strong>${r.func}</strong> · <strong>${r.epi}</strong><br><span>${r.tipo.charAt(0).toUpperCase()+r.tipo.slice(1)} — ${r.destino} · ${r.data}</span>`;
@@ -492,14 +493,17 @@ function fecharModalExcluirFora(e){if(e.target.id==='modal-excluir')fecharModalE
 async function confirmarExclusao(){
   if(!excluindoId)return;
   try{
-    await fbDelete('/epis/'+excluindoId);
+    const lista=registros.filter(x=>x.id!==excluindoId);
+    await jbSalvar(lista);
+    registros=lista;
     fecharModalExcluir();
+    renderHistorico();
     mostrarAlerta('Registro excluído.','sucesso');
   }catch(e){mostrarAlerta('Erro ao excluir.');}
 }
 
 function abrirModalEdit(id){
-  const r=registros[id];if(!r)return;
+  const r=registros.find(x=>x.id===id);if(!r)return;
   editandoId=id;
   document.getElementById('m-func').value=r.func;
   document.getElementById('m-epi').value=r.epi;
@@ -509,23 +513,17 @@ function abrirModalEdit(id){
   const btns=document.querySelectorAll('.modal-tipo .tipo-btn');
   const mapa={contaminado:0,reciclavel:1,comum:2};
   btns.forEach(b=>b.className='tipo-btn');
-  if(mapa[r.tipo]!==undefined){
-    btns[mapa[r.tipo]].className='tipo-btn selected-'+r.tipo;
-    btnModalAtivo=btns[mapa[r.tipo]];
-  }
-  document.getElementById('modal-edit').classList.add('open');
-  // foto
+  if(mapa[r.tipo]!==undefined){btns[mapa[r.tipo]].className='tipo-btn selected-'+r.tipo;btnModalAtivo=btns[mapa[r.tipo]];}
   fotoModalBase64=r.foto||null;
   if(fotoModalBase64){
     document.getElementById('m-foto-preview').src=fotoModalBase64;
     document.getElementById('m-foto-placeholder').style.display='none';
     document.getElementById('m-foto-preview-wrap').style.display='block';
   }else{
-    document.getElementById('m-foto-input').value='';
-    document.getElementById('m-foto-preview').src='';
-    document.getElementById('m-foto-placeholder').style.display='block';
-    document.getElementById('m-foto-preview-wrap').style.display='none';
+    document.getElementById('m-foto-input').value='';document.getElementById('m-foto-preview').src='';
+    document.getElementById('m-foto-placeholder').style.display='block';document.getElementById('m-foto-preview-wrap').style.display='none';
   }
+  document.getElementById('modal-edit').classList.add('open');
 }
 function fecharModalEdit(){document.getElementById('modal-edit').classList.remove('open');editandoId=null;tipoModalSel=null;btnModalAtivo=null;fotoModalBase64=null;}
 function fecharModalEditFora(e){if(e.target.id==='modal-edit')fecharModalEdit();}
@@ -536,32 +534,34 @@ async function salvarEdicao(){
   if(!func||!epi){mostrarAlerta('Preencha nome e EPI.');return}
   if(!tipoModalSel){mostrarAlerta('Selecione a classificação.');return}
   const destinos={contaminado:'Empresa especializada',reciclavel:'Reciclagem',comum:'Aterro autorizado'};
+  const original=registros.find(x=>x.id===editandoId);
   const atualizado={
-    ...registros[editandoId],func,epi,
+    ...original,func,epi,
     tipo:tipoModalSel,destino:destinos[tipoModalSel],
     setor:document.getElementById('m-setor').value||'—',
     motivo:document.getElementById('m-motivo').value||'—',
-    foto:fotoModalBase64!==null?fotoModalBase64:registros[editandoId].foto||null
+    foto:fotoModalBase64!==null?fotoModalBase64:(original.foto||null)
   };
   try{
-    await fbSet('/epis/'+editandoId,atualizado);
+    const lista=registros.map(x=>x.id===editandoId?atualizado:x);
+    await jbSalvar(lista);
+    registros=lista;
     fecharModalEdit();
-    mostrarAlerta('Atualizado para todos!','sucesso');
+    renderHistorico();
+    mostrarAlerta('Atualizado!','sucesso');
   }catch(e){mostrarAlerta('Erro ao salvar edição.');}
 }
 
+// ── Render ────────────────────────────────────────────
 function renderHistorico(){
   const h=document.getElementById('historico');
   const icones={contaminado:'fa-biohazard',reciclavel:'fa-recycle',comum:'fa-trash'};
-  const lista=Object.entries(registros||{}).sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
-  document.getElementById('cnt-cont').textContent=lista.filter(([,r])=>r.tipo==='contaminado').length;
-  document.getElementById('cnt-rec').textContent=lista.filter(([,r])=>r.tipo==='reciclavel').length;
-  document.getElementById('cnt-com').textContent=lista.filter(([,r])=>r.tipo==='comum').length;
-  if(!lista.length){
-    h.innerHTML='<div class="vazio"><i class="fa-solid fa-inbox"></i>Nenhum registro ainda.</div>';
-    return;
-  }
-  h.innerHTML=lista.map(([id,r])=>`
+  const lista=[...registros].sort((a,b)=>(b.ts||0)-(a.ts||0));
+  document.getElementById('cnt-cont').textContent=lista.filter(r=>r.tipo==='contaminado').length;
+  document.getElementById('cnt-rec').textContent=lista.filter(r=>r.tipo==='reciclavel').length;
+  document.getElementById('cnt-com').textContent=lista.filter(r=>r.tipo==='comum').length;
+  if(!lista.length){h.innerHTML='<div class="vazio"><i class="fa-solid fa-inbox"></i>Nenhum registro ainda.</div>';return;}
+  h.innerHTML=lista.map((r,idx)=>`
     <div class="registro-card">
       <div class="registro-badge badge-${r.tipo}"><i class="fa-solid ${icones[r.tipo]}"></i></div>
       <div class="registro-info">
@@ -570,10 +570,10 @@ function renderHistorico(){
         <div class="registro-hora">${r.data} às ${r.hora}</div>
       </div>
       <span class="registro-destino dest-${r.tipo}">${r.destino}</span>
-      ${r.foto?`<img class="registro-foto" src="${r.foto}" alt="Foto EPI" onclick="abrirModalFoto('${r.foto}')" title="Ver foto">`:''}
+      ${r.foto?`<img class="registro-foto" src="${r.foto}" alt="Foto EPI" onclick="abrirModalFoto(${registros.findIndex(x=>x.id===r.id)})" title="Ver foto">`:''}
       <div class="registro-acoes">
-        <button class="btn-acao editar" onclick="abrirModalEdit('${id}')" title="Editar"><i class="fa-solid fa-pen"></i></button>
-        <button class="btn-acao excluir" onclick="pedirExclusao('${id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+        <button class="btn-acao editar" onclick="abrirModalEdit('${r.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn-acao excluir" onclick="pedirExclusao('${r.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>
   `).join('');
@@ -581,8 +581,8 @@ function renderHistorico(){
 
 window.addEventListener('load',()=>{
   try{
-    const s=localStorage.getItem('epi_fb_url');
-    if(s){document.getElementById('firebase-url').value=s;conectarFirebase();}
+    const k=localStorage.getItem('epi_jb_key');
+    if(k){document.getElementById('jsonbin-key').value=k;conectarJSONBin();}
   }catch(e){}
 });
 </script>
