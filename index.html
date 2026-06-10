@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Descarte de EPIs</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --laranja:#E85C0D;--laranja-hover:#C94D0A;
+  --azul:#1A4A8A;--azul-claro:#EAF1FB;--azul-medio:#2E75D4;
+  --branco:#fff;--cinza:#F4F6F9;--cinza-texto:#6B7280;--borda:#D1D9E6;--texto:#1C2B45;
+}
+body{font-family:'Barlow',sans-serif;background:var(--cinza);color:var(--texto)}
+.app{max-width:720px;margin:0 auto;padding:1.5rem 1rem 3rem}
+.header{background:var(--azul);padding:1.5rem 2rem;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:1rem}
+.header-icon{width:48px;height:48px;background:var(--laranja);border-radius:12px;display:flex;align-items:center;justify-content:center}
+.header-icon i{font-size:22px;color:#fff}
+.header-title{color:#fff;flex:1}
+.header-title h1{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700}
+.header-title p{font-size:13px;opacity:.7;margin-top:2px}
+.sync-badge{font-size:11px;background:rgba(255,255,255,.15);color:#fff;padding:5px 11px;border-radius:20px;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.body{background:#fff;border:1px solid var(--borda);border-top:none;border-radius:0 0 16px 16px;padding:1.75rem}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.full{grid-column:1/-1}
+label{font-size:12px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--azul)}
+input,select{font-family:'Barlow',sans-serif;font-size:15px;padding:10px 14px;border:1.5px solid var(--borda);border-radius:10px;color:var(--texto);background:#fff;transition:border-color .2s}
+input:focus,select:focus{outline:none;border-color:var(--azul-medio)}
+.tipo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px}
+.tipo-btn{padding:12px 8px;border:2px solid var(--borda);border-radius:12px;cursor:pointer;text-align:center;transition:all .2s;background:#fff;font-family:'Barlow',sans-serif}
+.tipo-btn .tipo-icone{font-size:22px;margin-bottom:5px}
+.tipo-btn .tipo-nome{font-size:12px;font-weight:600;color:var(--cinza-texto);text-transform:uppercase;letter-spacing:.5px}
+.tipo-btn .tipo-destino{font-size:11px;color:var(--cinza-texto);margin-top:3px}
+.tipo-btn:hover{border-color:var(--laranja);transform:translateY(-2px)}
+.tipo-btn.selected-contaminado{border-color:#E24B4A;background:#FFF2F2}.tipo-btn.selected-contaminado .tipo-nome{color:#A32D2D}
+.tipo-btn.selected-reciclavel{border-color:#3B6D11;background:#F0F7E6}.tipo-btn.selected-reciclavel .tipo-nome{color:#3B6D11}
+.tipo-btn.selected-comum{border-color:var(--azul-medio);background:var(--azul-claro)}.tipo-btn.selected-comum .tipo-nome{color:var(--azul)}
+.divider{border:none;border-top:1px solid var(--borda);margin:1.5rem 0}
+.btn-registrar-wrap{position:relative}
+.btn-registrar-wrap::before{content:'';position:absolute;inset:-3px;border-radius:17px;background:linear-gradient(135deg,var(--laranja),#FF9D6C,var(--laranja));opacity:.35;z-index:0;animation:pulse-border 2s ease-in-out infinite}
+@keyframes pulse-border{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.6;transform:scale(1.01)}}
+.btn-registrar{width:100%;padding:18px;background:linear-gradient(135deg,var(--laranja),#FF7A2F);color:#fff;border:none;border-radius:14px;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;letter-spacing:1.5px;cursor:pointer;transition:transform .15s,box-shadow .15s;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 6px 20px rgba(232,92,13,.45);position:relative;z-index:1}
+.btn-registrar:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(232,92,13,.55)}
+.btn-registrar:active{transform:scale(.98)}
+.alerta{display:none;padding:12px 16px;border-radius:10px;font-size:14px;margin-bottom:1rem;font-weight:500;align-items:center;gap:8px}
+.alerta.erro{background:#FFF2F2;color:#A32D2D;border:1px solid #F7C1C1}
+.alerta.sucesso{background:#EAF3DE;color:#3B6D11;border:1px solid #C0DD97}
+.alerta.show{display:flex}
+.secao-titulo{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:8px}
+.secao-titulo i{font-size:18px;color:var(--laranja)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
+.stat{text-align:center;padding:10px;border-radius:12px;background:var(--cinza)}
+.stat-num{font-size:24px;font-weight:700;font-family:'Barlow Condensed',sans-serif}
+.stat-rot{font-size:11px;color:var(--cinza-texto);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.num-contaminado{color:#A32D2D}.num-reciclavel{color:#3B6D11}.num-comum{color:var(--azul)}
+.historico{max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.registro-card{padding:12px 16px;border-radius:12px;border:1px solid var(--borda);background:var(--cinza);display:flex;align-items:center;gap:12px;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.registro-badge{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.badge-contaminado{background:#FFF2F2;color:#A32D2D}
+.badge-reciclavel{background:#EAF3DE;color:#3B6D11}
+.badge-comum{background:var(--azul-claro);color:var(--azul)}
+.registro-info{flex:1;min-width:0}
+.registro-func{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.registro-epi{font-size:12px;color:var(--cinza-texto);margin-top:1px}
+.registro-hora{font-size:11px;color:var(--cinza-texto);margin-top:3px}
+.registro-destino{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;white-space:nowrap;flex-shrink:0}
+.dest-contaminado{background:#FFF2F2;color:#A32D2D}
+.dest-reciclavel{background:#EAF3DE;color:#3B6D11}
+.dest-comum{background:var(--azul-claro);color:var(--azul)}
+.registro-acoes{display:flex;gap:6px;flex-shrink:0}
+.btn-acao{width:34px;height:34px;border-radius:8px;border:none;background:#1C2B45;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:background .15s,transform .1s;flex-shrink:0}
+.btn-acao i{color:#fff}
+.btn-acao.editar:hover{background:#2E75D4}
+.btn-acao.excluir:hover{background:#E24B4A}
+.btn-acao:active{transform:scale(.92)}
+.vazio{text-align:center;padding:2rem;color:var(--cinza-texto);font-size:14px}
+.vazio i{font-size:36px;display:block;margin-bottom:8px;opacity:.4}
+.loading-bar{text-align:center;padding:1.5rem;color:var(--cinza-texto);font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px}
+.spinner{width:16px;height:16px;border:2px solid var(--borda);border-top-color:var(--azul-medio);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.setup-box{background:var(--azul-claro);border:1.5px solid var(--azul-medio);border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1.5rem}
+.setup-box h3{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--azul);margin-bottom:.5rem;display:flex;align-items:center;gap:7px}
+.setup-box h3 i{color:var(--laranja)}
+.setup-box p{font-size:13px;color:var(--cinza-texto);margin-bottom:.75rem;line-height:1.5}
+.setup-input-row{display:flex;gap:8px}
+.setup-input-row input{flex:1;font-size:13px;padding:9px 12px}
+.btn-conectar{padding:9px 18px;background:var(--azul);color:#fff;border:none;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .2s}
+.btn-conectar:hover{background:var(--azul-medio)}
+.setup-steps{font-size:12px;color:var(--cinza-texto);margin-top:.75rem;line-height:1.8}
+.setup-steps a{color:var(--azul-medio);text-decoration:none}
+.setup-steps a:hover{text-decoration:underline}
+.status-online{display:none;align-items:center;gap:5px;font-size:12px;color:#3B6D11;background:#EAF3DE;border:1px solid #C0DD97;padding:5px 12px;border-radius:20px;margin-bottom:1rem}
+.modal-overlay{position:fixed;inset:0;background:rgba(26,74,138,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:1rem}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--texto);margin-bottom:.5rem;display:flex;align-items:center;gap:8px}
+.modal-desc{font-size:14px;color:var(--cinza-texto);margin-bottom:1rem;line-height:1.5}
+.modal-info-box{background:var(--cinza);border-radius:10px;padding:10px 14px;margin-bottom:1.25rem;font-size:13px;line-height:1.6}
+.modal-acoes{display:flex;gap:10px}
+.btn-confirmar-excluir{flex:1;padding:12px;background:#E24B4A;color:#fff;border:none;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-confirmar-excluir:hover{background:#A32D2D}
+.btn-cancelar{padding:12px 20px;background:#fff;color:var(--cinza-texto);border:1.5px solid var(--borda);border-radius:10px;font-family:'Barlow',sans-serif;font-size:14px;cursor:pointer}
+.btn-cancelar:hover{border-color:var(--cinza-texto)}
+.modal-edit{background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-titulo-edit{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--azul);margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.modal-titulo-edit i{color:var(--laranja)}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}
+.modal-tipo{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1.25rem}
+.modal-tipo .tipo-btn{padding:8px 4px}
+.modal-tipo .tipo-btn .tipo-icone{font-size:18px;margin-bottom:4px}
+.btn-salvar{flex:1;padding:12px;background:var(--laranja);color:#fff;border:none;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-salvar:hover{background:var(--laranja-hover)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Foto EPI */
+.foto-upload-area{border:2px dashed var(--borda);border-radius:12px;padding:1.25rem;text-align:center;cursor:pointer;transition:all .2s;background:#fff;position:relative}
+.foto-upload-area:hover{border-color:var(--laranja);background:#FFF9F6}
+.foto-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.foto-upload-icone{font-size:28px;color:var(--cinza-texto);margin-bottom:6px}
+.foto-upload-txt{font-size:13px;color:var(--cinza-texto);font-weight:500}
+.foto-upload-sub{font-size:11px;color:var(--borda);margin-top:3px}
+.foto-preview-wrap{position:relative;display:inline-block;margin-top:0}
+.foto-preview{width:100%;max-height:200px;object-fit:cover;border-radius:10px;border:1.5px solid var(--borda);display:block}
+.foto-remover{position:absolute;top:6px;right:6px;width:26px;height:26px;background:#E24B4A;border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center}
+.foto-remover:hover{background:#A32D2D}
+.registro-foto{width:44px;height:44px;object-fit:cover;border-radius:8px;border:1.5px solid var(--borda);flex-shrink:0;cursor:pointer;transition:opacity .15s}
+.registro-foto:hover{opacity:.85}
+/* Modal foto grande */
+.modal-foto-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:200;padding:1rem}
+.modal-foto-overlay.open{display:flex}
+.modal-foto-img{max-width:100%;max-height:90vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-foto-fechar{position:absolute;top:1rem;right:1rem;width:38px;height:38px;background:#fff;border:none;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--texto)}
+</style>
+</head>
+<body>
+
+<!-- Modal Foto Grande -->
+<div class="modal-foto-overlay" id="modal-foto" onclick="fecharModalFoto()">
+  <button class="modal-foto-fechar" onclick="fecharModalFoto()"><i class="fa-solid fa-xmark"></i></button>
+  <img class="modal-foto-img" id="modal-foto-img" src="" alt="Foto do EPI">
+</div>
+
+<!-- Modal Excluir -->
+<div class="modal-overlay" id="modal-excluir" onclick="fecharModalExcluirFora(event)">
+  <div class="modal">
+    <div class="modal-title"><i class="fa-solid fa-triangle-exclamation" style="color:#E24B4A"></i>Excluir registro?</div>
+    <div class="modal-desc">Essa ação não pode ser desfeita. O registro será removido para todos os usuários.</div>
+    <div class="modal-info-box" id="excluir-info"></div>
+    <div class="modal-acoes">
+      <button class="btn-cancelar" onclick="fecharModalExcluir()">Cancelar</button>
+      <button class="btn-confirmar-excluir" onclick="confirmarExclusao()"><i class="fa-solid fa-trash"></i>Excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar -->
+<div class="modal-overlay" id="modal-edit" onclick="fecharModalEditFora(event)">
+  <div class="modal-edit">
+    <div class="modal-titulo-edit"><i class="fa-solid fa-pen-to-square"></i>Editar Registro</div>
+    <div class="modal-grid">
+      <div class="form-group"><label>Funcionário</label><input id="m-func" type="text"></div>
+      <div class="form-group"><label>EPI</label><input id="m-epi" type="text"></div>
+      <div class="form-group"><label>Setor</label>
+        <select id="m-setor">
+          <option value="">Selecione</option>
+          <option>Produção</option><option>Manutenção</option><option>Almoxarifado</option>
+          <option>Laboratório</option><option>Administrativo</option><option>Outro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Motivo</label>
+        <select id="m-motivo">
+          <option value="">Selecione</option>
+          <option>Fim de vida útil</option><option>Dano físico</option><option>Contaminação</option>
+          <option>Vencimento</option><option>Troca preventiva</option>
+        </select>
+      </div>
+    </div>
+    <label style="font-size:12px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--azul);display:block;margin-bottom:8px">Classificação</label>
+    <div class="modal-tipo">
+      <button class="tipo-btn" onclick="selecionarTipoModal('contaminado',this)"><div class="tipo-icone">☣️</div><div class="tipo-nome">Contaminado</div></button>
+      <button class="tipo-btn" onclick="selecionarTipoModal('reciclavel',this)"><div class="tipo-icone">♻️</div><div class="tipo-nome">Reciclável</div></button>
+      <button class="tipo-btn" onclick="selecionarTipoModal('comum',this)"><div class="tipo-icone">🗑️</div><div class="tipo-nome">Comum</div></button>
+    </div>
+    <div style="margin-bottom:1.25rem">
+      <label style="font-size:12px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--azul);display:block;margin-bottom:8px">Foto do EPI <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--cinza-texto)">(opcional)</span></label>
+      <div id="m-foto-upload-area" class="foto-upload-area">
+        <input type="file" id="m-foto-input" accept="image/*" capture="environment" onchange="previewFotoModal(this)">
+        <div id="m-foto-placeholder">
+          <div class="foto-upload-icone"><i class="fa-solid fa-camera"></i></div>
+          <div class="foto-upload-txt">Tirar foto ou escolher da galeria</div>
+        </div>
+        <div id="m-foto-preview-wrap" class="foto-preview-wrap" style="display:none">
+          <img id="m-foto-preview" class="foto-preview" src="" alt="Preview">
+          <button type="button" class="foto-remover" onclick="removerFotoModal(event)" title="Remover foto"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-acoes">
+      <button class="btn-cancelar" onclick="fecharModalEdit()">Cancelar</button>
+      <button class="btn-salvar" onclick="salvarEdicao()"><i class="fa-solid fa-floppy-disk"></i>Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- App Principal -->
+<div class="app">
+  <div class="header">
+    <div class="header-icon"><i class="fa-solid fa-shield-halved"></i></div>
+    <div class="header-title">
+      <h1>Sistema de Descarte de EPIs</h1>
+      <p>Controle colaborativo em tempo real</p>
+    </div>
+    <div class="sync-badge" id="sync-badge">
+      <div class="sync-dot" id="sync-dot" style="background:#f87171"></div>
+      <span id="sync-txt">Desconectado</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <div id="alerta" class="alerta"><i id="alerta-icone"></i><span id="alerta-msg"></span></div>
+
+    <!-- Configuração Firebase -->
+    <div class="setup-box" id="setup-box">
+      <h3><i class="fa-solid fa-database"></i>Configurar banco de dados em tempo real</h3>
+      <p>Para compartilhar com qualquer pessoa via link (como Google Sheets), cole a URL do seu Firebase Realtime Database. É gratuito e leva 2 minutos.</p>
+      <div class="setup-input-row">
+        <input id="firebase-url" type="text" placeholder="https://SEU-PROJETO-default-rtdb.firebaseio.com">
+        <button class="btn-conectar" onclick="conectarFirebase()"><i class="fa-solid fa-plug"></i> Conectar</button>
+      </div>
+      <div class="setup-steps">
+        <strong>Como criar em 2 minutos (gratuito):</strong><br>
+        1. Acesse <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → Criar projeto<br>
+        2. Menu lateral: <strong>Build → Realtime Database → Criar banco</strong><br>
+        3. Escolha <strong>"Iniciar no modo de teste"</strong><br>
+        4. Copie a URL gerada (ex: <em>https://meu-projeto-default-rtdb.firebaseio.com</em>)<br>
+        5. Cole acima e clique em <strong>Conectar</strong> — todos que abrirem o arquivo verão os mesmos dados!
+      </div>
+    </div>
+
+    <div class="status-online" id="status-online">
+      <i class="fa-solid fa-circle-check"></i>Conectado — sincronizado em tempo real para todos
+    </div>
+
+    <p class="secao-titulo" style="margin-bottom:1rem"><i class="fa-solid fa-clipboard-list"></i>Novo registro</p>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="funcionario">Nome do funcionário</label>
+        <input id="funcionario" type="text" placeholder="Ex: João Silva" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="epi">Nome do EPI</label>
+        <input id="epi" type="text" placeholder="Ex: Luva nitrílica" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="setor">Setor / área</label>
+        <select id="setor">
+          <option value="">Selecione o setor</option>
+          <option>Produção</option><option>Manutenção</option><option>Almoxarifado</option>
+          <option>Laboratório</option><option>Administrativo</option><option>Outro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="motivo">Motivo do descarte</label>
+        <select id="motivo">
+          <option value="">Selecione o motivo</option>
+          <option>Fim de vida útil</option><option>Dano físico</option><option>Contaminação</option>
+          <option>Vencimento</option><option>Troca preventiva</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Classificação do EPI</label>
+        <div class="tipo-grid">
+          <button class="tipo-btn" onclick="selecionarTipo('contaminado',this)">
+            <div class="tipo-icone">☣️</div>
+            <div class="tipo-nome">Contaminado</div>
+            <div class="tipo-destino">Empresa especializada</div>
+          </button>
+          <button class="tipo-btn" onclick="selecionarTipo('reciclavel',this)">
+            <div class="tipo-icone">♻️</div>
+            <div class="tipo-nome">Reciclável</div>
+            <div class="tipo-destino">Enviar para reciclagem</div>
+          </button>
+          <button class="tipo-btn" onclick="selecionarTipo('comum',this)">
+            <div class="tipo-icone">🗑️</div>
+            <div class="tipo-nome">Comum</div>
+            <div class="tipo-destino">Aterro autorizado</div>
+          </button>
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>Foto do EPI <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--cinza-texto)">(opcional)</span></label>
+        <div id="foto-upload-area" class="foto-upload-area">
+          <input type="file" id="foto-input" accept="image/*" capture="environment" onchange="previewFoto(this)">
+          <div id="foto-placeholder">
+            <div class="foto-upload-icone"><i class="fa-solid fa-camera"></i></div>
+            <div class="foto-upload-txt">Tirar foto ou escolher da galeria</div>
+            <div class="foto-upload-sub">JPG, PNG — max 5MB</div>
+          </div>
+          <div id="foto-preview-wrap" class="foto-preview-wrap" style="display:none">
+            <img id="foto-preview" class="foto-preview" src="" alt="Preview">
+            <button type="button" class="foto-remover" onclick="removerFoto(event)" title="Remover foto"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+    <div class="btn-registrar-wrap">
+      <button class="btn-registrar" onclick="registrar()">
+        <i class="fa-solid fa-floppy-disk"></i>REGISTRAR DESCARTE
+      </button>
+    </div>
+
+    <hr class="divider">
+    <div style="display:flex;align-items:center;margin-bottom:1rem">
+      <p class="secao-titulo"><i class="fa-solid fa-clock-rotate-left"></i>Histórico de registros</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-num num-contaminado" id="cnt-cont">0</div><div class="stat-rot">Contaminados</div></div>
+      <div class="stat"><div class="stat-num num-reciclavel" id="cnt-rec">0</div><div class="stat-rot">Recicláveis</div></div>
+      <div class="stat"><div class="stat-num num-comum" id="cnt-com">0</div><div class="stat-rot">Comuns</div></div>
+    </div>
+    <div class="historico" id="historico">
+      <div class="vazio"><i class="fa-solid fa-plug"></i>Configure o banco acima para começar.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let tipoSel=null,btnAtivo=null,tipoModalSel=null,btnModalAtivo=null;
+let registros={};
+let fbUrl=null;
+let excluindoId=null,editandoId=null;
+let sseSource=null;
+let fotoBase64=null;
+let fotoModalBase64=null;
+
+function previewFoto(input){
+  const file=input.files[0];
+  if(!file)return;
+  if(file.size>5*1024*1024){mostrarAlerta('Foto muito grande. Máximo 5MB.');input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    fotoBase64=e.target.result;
+    document.getElementById('foto-preview').src=fotoBase64;
+    document.getElementById('foto-placeholder').style.display='none';
+    document.getElementById('foto-preview-wrap').style.display='block';
+  };
+  reader.readAsDataURL(file);
+}
+function removerFoto(ev){
+  ev.preventDefault();ev.stopPropagation();
+  fotoBase64=null;
+  document.getElementById('foto-input').value='';
+  document.getElementById('foto-preview').src='';
+  document.getElementById('foto-placeholder').style.display='block';
+  document.getElementById('foto-preview-wrap').style.display='none';
+}
+function previewFotoModal(input){
+  const file=input.files[0];
+  if(!file)return;
+  if(file.size>5*1024*1024){mostrarAlerta('Foto muito grande. Máximo 5MB.');input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    fotoModalBase64=e.target.result;
+    document.getElementById('m-foto-preview').src=fotoModalBase64;
+    document.getElementById('m-foto-placeholder').style.display='none';
+    document.getElementById('m-foto-preview-wrap').style.display='block';
+  };
+  reader.readAsDataURL(file);
+}
+function removerFotoModal(ev){
+  ev.preventDefault();ev.stopPropagation();
+  fotoModalBase64=null;
+  document.getElementById('m-foto-input').value='';
+  document.getElementById('m-foto-preview').src='';
+  document.getElementById('m-foto-placeholder').style.display='block';
+  document.getElementById('m-foto-preview-wrap').style.display='none';
+}
+function abrirModalFoto(src){
+  document.getElementById('modal-foto-img').src=src;
+  document.getElementById('modal-foto').classList.add('open');
+}
+function fecharModalFoto(){document.getElementById('modal-foto').classList.remove('open');}
+
+function setSyncBadge(txt,cor){
+  document.getElementById('sync-txt').textContent=txt;
+  const d=document.getElementById('sync-dot');
+  const cores={verde:'#4ade80',amarelo:'#facc15',vermelho:'#f87171'};
+  d.style.background=cores[cor]||cores.vermelho;
+  d.style.animation=cor==='amarelo'?'blink .8s infinite':'none';
+}
+
+function mostrarAlerta(msg,tipo='erro'){
+  const a=document.getElementById('alerta');
+  document.getElementById('alerta-msg').textContent=msg;
+  a.className='alerta '+(tipo==='erro'?'erro':'sucesso')+' show';
+  document.getElementById('alerta-icone').className='fa-solid '+(tipo==='erro'?'fa-circle-exclamation':'fa-circle-check');
+  setTimeout(()=>a.classList.remove('show'),3500);
+}
+
+function selecionarTipo(tipo,btn){
+  if(btnAtivo)btnAtivo.className='tipo-btn';
+  tipoSel=tipo;btnAtivo=btn;btn.className='tipo-btn selected-'+tipo;
+}
+function selecionarTipoModal(tipo,btn){
+  if(btnModalAtivo)btnModalAtivo.className='tipo-btn';
+  tipoModalSel=tipo;btnModalAtivo=btn;btn.className='tipo-btn selected-'+tipo;
+}
+
+async function fbGet(path){const r=await fetch(fbUrl+path+'.json');if(!r.ok)throw new Error();return r.json();}
+async function fbPost(path,data){const r=await fetch(fbUrl+path+'.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok)throw new Error();return r.json();}
+async function fbSet(path,data){const r=await fetch(fbUrl+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok)throw new Error();return r.json();}
+async function fbDelete(path){const r=await fetch(fbUrl+path+'.json',{method:'DELETE'});if(!r.ok)throw new Error();}
+
+function iniciarSSE(){
+  if(sseSource)sseSource.close();
+  sseSource=new EventSource(fbUrl+'/epis.json');
+  sseSource.addEventListener('put',e=>{const d=JSON.parse(e.data);registros=d.data||{};renderHistorico();});
+  sseSource.addEventListener('patch',e=>{const d=JSON.parse(e.data);Object.assign(registros,d.data||{});renderHistorico();});
+  sseSource.onerror=()=>setSyncBadge('Reconectando...','amarelo');
+  sseSource.onopen=()=>setSyncBadge('Ao vivo ●','verde');
+}
+
+async function conectarFirebase(){
+  let url=document.getElementById('firebase-url').value.trim().replace(/\/$/,'');
+  if(!url.startsWith('https://')){mostrarAlerta('URL inválida. Deve começar com https://');return;}
+  setSyncBadge('Conectando...','amarelo');
+  try{
+    const teste=await fbGet('/epis');
+    registros=teste||{};
+    fbUrl=url;
+    try{localStorage.setItem('epi_fb_url',url);}catch(e){}
+    document.getElementById('setup-box').style.display='none';
+    document.getElementById('status-online').style.display='flex';
+    renderHistorico();
+    iniciarSSE();
+    mostrarAlerta('Conectado! Dados em tempo real para todos.','sucesso');
+  }catch(e){
+    setSyncBadge('Erro','vermelho');
+    mostrarAlerta('Não foi possível conectar. Verifique a URL e as regras do Firebase.');
+  }
+}
+
+async function registrar(){
+  if(!fbUrl){mostrarAlerta('Conecte ao Firebase primeiro.');return;}
+  const func=document.getElementById('funcionario').value.trim();
+  const epi=document.getElementById('epi').value.trim();
+  const setor=document.getElementById('setor').value;
+  const motivo=document.getElementById('motivo').value;
+  if(!func){mostrarAlerta('Informe o nome do funcionário.');return}
+  if(!epi){mostrarAlerta('Informe o nome do EPI.');return}
+  if(!tipoSel){mostrarAlerta('Selecione a classificação do EPI.');return}
+  const destinos={contaminado:'Empresa especializada',reciclavel:'Reciclagem',comum:'Aterro autorizado'};
+  const agora=new Date();
+  const novo={
+    func,epi,tipo:tipoSel,destino:destinos[tipoSel],
+    setor:setor||'—',motivo:motivo||'—',
+    hora:agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    data:agora.toLocaleDateString('pt-BR'),
+    ts:agora.getTime(),
+    foto:fotoBase64||null
+  };
+  try{
+    await fbPost('/epis',novo);
+    document.getElementById('funcionario').value='';
+    document.getElementById('epi').value='';
+    document.getElementById('setor').value='';
+    document.getElementById('motivo').value='';
+    removerFoto({preventDefault:()=>{},stopPropagation:()=>{}});
+    if(btnAtivo)btnAtivo.className='tipo-btn';
+    tipoSel=null;btnAtivo=null;
+    mostrarAlerta('Descarte registrado para todos!','sucesso');
+  }catch(e){mostrarAlerta('Erro ao salvar. Tente novamente.');}
+}
+
+function pedirExclusao(id){
+  const r=registros[id];if(!r)return;
+  excluindoId=id;
+  document.getElementById('excluir-info').innerHTML=
+    `<strong>${r.func}</strong> · <strong>${r.epi}</strong><br><span>${r.tipo.charAt(0).toUpperCase()+r.tipo.slice(1)} — ${r.destino} · ${r.data}</span>`;
+  document.getElementById('modal-excluir').classList.add('open');
+}
+function fecharModalExcluir(){document.getElementById('modal-excluir').classList.remove('open');excluindoId=null;}
+function fecharModalExcluirFora(e){if(e.target.id==='modal-excluir')fecharModalExcluir();}
+async function confirmarExclusao(){
+  if(!excluindoId)return;
+  try{
+    await fbDelete('/epis/'+excluindoId);
+    fecharModalExcluir();
+    mostrarAlerta('Registro excluído.','sucesso');
+  }catch(e){mostrarAlerta('Erro ao excluir.');}
+}
+
+function abrirModalEdit(id){
+  const r=registros[id];if(!r)return;
+  editandoId=id;
+  document.getElementById('m-func').value=r.func;
+  document.getElementById('m-epi').value=r.epi;
+  document.getElementById('m-setor').value=r.setor==='—'?'':r.setor;
+  document.getElementById('m-motivo').value=r.motivo==='—'?'':r.motivo;
+  tipoModalSel=r.tipo;btnModalAtivo=null;
+  const btns=document.querySelectorAll('.modal-tipo .tipo-btn');
+  const mapa={contaminado:0,reciclavel:1,comum:2};
+  btns.forEach(b=>b.className='tipo-btn');
+  if(mapa[r.tipo]!==undefined){
+    btns[mapa[r.tipo]].className='tipo-btn selected-'+r.tipo;
+    btnModalAtivo=btns[mapa[r.tipo]];
+  }
+  document.getElementById('modal-edit').classList.add('open');
+  // foto
+  fotoModalBase64=r.foto||null;
+  if(fotoModalBase64){
+    document.getElementById('m-foto-preview').src=fotoModalBase64;
+    document.getElementById('m-foto-placeholder').style.display='none';
+    document.getElementById('m-foto-preview-wrap').style.display='block';
+  }else{
+    document.getElementById('m-foto-input').value='';
+    document.getElementById('m-foto-preview').src='';
+    document.getElementById('m-foto-placeholder').style.display='block';
+    document.getElementById('m-foto-preview-wrap').style.display='none';
+  }
+}
+function fecharModalEdit(){document.getElementById('modal-edit').classList.remove('open');editandoId=null;tipoModalSel=null;btnModalAtivo=null;fotoModalBase64=null;}
+function fecharModalEditFora(e){if(e.target.id==='modal-edit')fecharModalEdit();}
+async function salvarEdicao(){
+  if(!editandoId)return;
+  const func=document.getElementById('m-func').value.trim();
+  const epi=document.getElementById('m-epi').value.trim();
+  if(!func||!epi){mostrarAlerta('Preencha nome e EPI.');return}
+  if(!tipoModalSel){mostrarAlerta('Selecione a classificação.');return}
+  const destinos={contaminado:'Empresa especializada',reciclavel:'Reciclagem',comum:'Aterro autorizado'};
+  const atualizado={
+    ...registros[editandoId],func,epi,
+    tipo:tipoModalSel,destino:destinos[tipoModalSel],
+    setor:document.getElementById('m-setor').value||'—',
+    motivo:document.getElementById('m-motivo').value||'—',
+    foto:fotoModalBase64!==null?fotoModalBase64:registros[editandoId].foto||null
+  };
+  try{
+    await fbSet('/epis/'+editandoId,atualizado);
+    fecharModalEdit();
+    mostrarAlerta('Atualizado para todos!','sucesso');
+  }catch(e){mostrarAlerta('Erro ao salvar edição.');}
+}
+
+function renderHistorico(){
+  const h=document.getElementById('historico');
+  const icones={contaminado:'fa-biohazard',reciclavel:'fa-recycle',comum:'fa-trash'};
+  const lista=Object.entries(registros||{}).sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
+  document.getElementById('cnt-cont').textContent=lista.filter(([,r])=>r.tipo==='contaminado').length;
+  document.getElementById('cnt-rec').textContent=lista.filter(([,r])=>r.tipo==='reciclavel').length;
+  document.getElementById('cnt-com').textContent=lista.filter(([,r])=>r.tipo==='comum').length;
+  if(!lista.length){
+    h.innerHTML='<div class="vazio"><i class="fa-solid fa-inbox"></i>Nenhum registro ainda.</div>';
+    return;
+  }
+  h.innerHTML=lista.map(([id,r])=>`
+    <div class="registro-card">
+      <div class="registro-badge badge-${r.tipo}"><i class="fa-solid ${icones[r.tipo]}"></i></div>
+      <div class="registro-info">
+        <div class="registro-func">${r.func} <span style="font-weight:400;color:var(--cinza-texto);font-size:12px">· ${r.setor}</span></div>
+        <div class="registro-epi">${r.epi} · ${r.motivo}</div>
+        <div class="registro-hora">${r.data} às ${r.hora}</div>
+      </div>
+      <span class="registro-destino dest-${r.tipo}">${r.destino}</span>
+      ${r.foto?`<img class="registro-foto" src="${r.foto}" alt="Foto EPI" onclick="abrirModalFoto('${r.foto}')" title="Ver foto">`:''}
+      <div class="registro-acoes">
+        <button class="btn-acao editar" onclick="abrirModalEdit('${id}')" title="Editar"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn-acao excluir" onclick="pedirExclusao('${id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.addEventListener('load',()=>{
+  try{
+    const s=localStorage.getItem('epi_fb_url');
+    if(s){document.getElementById('firebase-url').value=s;conectarFirebase();}
+  }catch(e){}
+});
+</script>
+</body>
+</html>
